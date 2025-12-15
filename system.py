@@ -3,8 +3,9 @@ import tkinter as tk
 from PIL import Image, ImageTk
 import mediapipe as mp
 import numpy as np
-import pickle
 import pygame
+import tensorflow as tf
+
 
 pygame.mixer.init()
 def play_video_then_start_pose():
@@ -37,8 +38,11 @@ def play_video_then_start_pose():
 def start_pose_recognition():
     root.destroy()
 
-    model_dict = pickle.load(open('./pose_model_full_body.p', 'rb'))
-    pose_model = model_dict['pose_model']
+    interpreter = tf.lite.Interpreter(model_path="pose_model.tflite")
+    interpreter.allocate_tensors()
+
+    input_details = interpreter.get_input_details()
+    output_details = interpreter.get_output_details()
 
     sounds = {
         "close": r"C:\Users\s2887800\PycharmProjects\ProjectM6\audios\CloseArms.mp3",
@@ -95,8 +99,14 @@ def start_pose_recognition():
                     data_norm.append(y - y_min)
 
                 if len(data_norm) == 66:
-                    prediction = pose_model.predict([np.asarray(data_norm)])
-                    predicted_char = prediction[0]
+                    input_data = np.asarray([data_norm], dtype=np.float32)
+
+                    interpreter.set_tensor(input_details[0]['index'], input_data)
+                    interpreter.invoke()
+                    output_data = interpreter.get_tensor(output_details[0]['index'])
+
+                    predicted_char_index = np.argmax(output_data)
+                    predicted_char = categories[predicted_char_index]
 
                     if predicted_char != last_stage:
                         last_stage = predicted_char

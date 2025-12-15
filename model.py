@@ -24,6 +24,7 @@ categories = ["1 Arms streched", "2 Curl halfway", "3 Full bicep curl", "4 Arms 
 
 data, labels = [], []
 
+
 for dir_ in os.listdir(dataset_dir):
     dir_path = os.path.join(dataset_dir, dir_)
     if not os.path.isdir(dir_path):
@@ -70,8 +71,7 @@ x = np.asarray(data)
 y = np.asarray(labels)
 
 x_train, x_test, y_train, y_test = train_test_split(
-    x, y, test_size=0.4, shuffle=True, random_state=100
-)
+    x, y, test_size=0.4, shuffle=True, random_state=100)
 
 base_model = SVC(kernel='linear', class_weight='balanced')
 base_model.fit(x_train, y_train)

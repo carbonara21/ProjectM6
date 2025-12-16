@@ -6,13 +6,15 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from tensorflow.keras.utils import to_categorical
 
 
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
 
 expected_landmarks = 33 * 2
-dataset_dir = r"C:\\Users\\s2887800\\PycharmProjects\\ProjectM6\\"
+dataset_dir = r"C:\\Users\\s2887800\\PycharmProjects\\ProjectM6\\data\\BC_D"
 
 categories = ["BC_D_1", "BC_D_2", "BC_D_3",
               "BC_D_I1", "BC_D_I2", "BC_D_I3"]
@@ -56,7 +58,13 @@ for dir_ in os.listdir(dataset_dir):
 x = np.asarray(data)
 y = np.asarray(labels)
 
-x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=42)
+encoder = LabelEncoder()
+y_encoded = encoder.fit_transform(y)   # strings → integers
+y_encoded = to_categorical(y_encoded)
+
+x_train, x_test, y_train, y_test = train_test_split(
+    x, y_encoded, test_size=0.3, random_state=42
+)
 
 
 model = Sequential([
@@ -75,5 +83,5 @@ converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
 # Save to file
-with open("pose_model.tflite", "wb") as f:
+with open("M_BC_D.tflite", "wb") as f:
     f.write(tflite_model)

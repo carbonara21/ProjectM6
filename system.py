@@ -38,7 +38,7 @@ def play_video_then_start_pose():
 def start_pose_recognition():
     root.destroy()
 
-    interpreter = tf.lite.Interpreter(model_path="pose_model.tflite")
+    interpreter = tf.lite.Interpreter(model_path="M_BC_F.tflite")
     interpreter.allocate_tensors()
 
     input_details = interpreter.get_input_details()
@@ -49,8 +49,8 @@ def start_pose_recognition():
         "elbows": r"C:\Users\s2887800\PycharmProjects\ProjectM6\audios\ElbowsTorso.mp3"
     }
 
-    categories = ["BC_D_1", "BC_D_2", "BC_D_3", "BC_D_I1",
-                  "BC_D_I2", "BC_D_I3"]
+    categories = ["BC_F_1", "BC_F_2", "BC_F_3", "BC_F_I1",
+                  "BC_F_I2"]
 
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False)
@@ -61,11 +61,11 @@ def start_pose_recognition():
     cv2.setWindowProperty("Full Body Pose Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     curl_sequence = [
-        "BC_D_1",
-        "BC_D_2",
-        "BC_D_3",
-        "BC_D_2",
-        "BC_D_1"
+        "BC_F_1",
+        "BC_F_2",
+        "BC_F_3",
+        "BC_F_2",
+        "BC_F_1"
     ]
 
     pose_history = []
@@ -126,7 +126,7 @@ def start_pose_recognition():
                             else:
                                 pose_history = []
 
-                    if predicted_char in ["BC_D_1", "BC_D_2", "BC_D_3"]:
+                    if predicted_char in ["BC_F_1", "BC_F_2", "BC_F_3"]:
                         skeleton_color_outer = (0, 255, 0)
                     else:
                         skeleton_color_outer = (0, 0, 255)

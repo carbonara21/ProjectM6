@@ -5,17 +5,17 @@ import mediapipe as mp
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
-from sklearn.preprocessing import LabelEncoder
-from tensorflow.keras.utils import to_categorical
+from sklearn.model_selection import train_test_split
+
 
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
 
 expected_landmarks = 33 * 2
-dataset_dir = r"C:\\Users\\s2887800\\PycharmProjects\\PythonProject1\\data"
+dataset_dir = r"C:\\Users\\s2887800\\PycharmProjects\\ProjectM6\\"
 
-categories = ["1 Arms streched", "2 Curl halfway", "3 Full bicep curl",
-              "4 Arms too open", "5 Elbows too in (Halfway)", "6 Elbows too in (Beggining)"]
+categories = ["BC_D_1", "BC_D_2", "BC_D_3",
+              "BC_D_I1", "BC_D_I2", "BC_D_I3"]
 
 data, labels = [], []
 
@@ -53,23 +53,23 @@ for dir_ in os.listdir(dataset_dir):
             data.append(data_norm)
             labels.append(dir_)
 
-X = np.asarray(data)
+x = np.asarray(data)
 y = np.asarray(labels)
 
-encoder = LabelEncoder()
-y_encoded = encoder.fit_transform(y)
-y_onehot = to_categorical(y_encoded)
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=42)
+
 
 model = Sequential([
     Dense(128, activation='relu', input_shape=(expected_landmarks,)),
+    Dropout(0.3),
+    Dense(64, activation='relu'),
     Dropout(0.3),
     Dense(len(categories), activation='softmax')
 ])
 
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.fit(X, y_onehot, epochs=75, batch_size=16, verbose=1, validation_split=0.1)
-model.evaluate(X, y_onehot)
-predictions = model.predict(X)
+model.fit(x_train, y_train, epochs=75, batch_size=16, verbose=1, validation_split=0.1)
+model.summary()
 
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()

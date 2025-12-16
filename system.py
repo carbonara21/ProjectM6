@@ -49,8 +49,8 @@ def start_pose_recognition():
         "elbows": r"C:\Users\s2887800\PycharmProjects\ProjectM6\audios\ElbowsTorso.mp3"
     }
 
-    categories = ["1 Arms streched", "2 Curl halfway", "3 Full bicep curl", "4 Arms too open",
-                  "5 Elbows too in (Halfway)", "6 Elbows too in (Beggining)"]
+    categories = ["BC_D_1", "BC_D_2", "BC_D_3", "BC_D_I1",
+                  "BC_D_I2", "BC_D_I3"]
 
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False)
@@ -61,11 +61,11 @@ def start_pose_recognition():
     cv2.setWindowProperty("Full Body Pose Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     curl_sequence = [
-        "1 Arms streched",
-        "2 Curl halfway",
-        "3 Full bicep curl",
-        "2 Curl halfway",
-        "1 Arms streched"
+        "BC_D_1",
+        "BC_D_2",
+        "BC_D_3",
+        "BC_D_2",
+        "BC_D_1"
     ]
 
     pose_history = []
@@ -126,23 +126,10 @@ def start_pose_recognition():
                             else:
                                 pose_history = []
 
-                    if predicted_char in ["1 Arms streched", "2 Curl halfway", "3 Full bicep curl"]:
+                    if predicted_char in ["BC_D_1", "BC_D_2", "BC_D_3"]:
                         skeleton_color_outer = (0, 255, 0)
                     else:
                         skeleton_color_outer = (0, 0, 255)
-
-                    ##if predicted_char in ["4 Arms too open"]:
-                      ##  if not pygame.mixer.music.get_busy():
-                        ##    pygame.mixer.music.load(sounds["close"])
-                          ##  pygame.mixer.music.play(loops=0)
-
-
-                  ##  elif predicted_char in ["5 Elbows too in (Halfway)", "6 Elbows too in (Beggining)"]:
-                    ##    if not pygame.mixer.music.get_busy():
-                      ##      pygame.mixer.music.load(sounds["elbows"])
-                        ##    pygame.mixer.music.play(loops=0)
-                   ## else:
-                      ##  pygame.mixer.music.stop()
 
 
 

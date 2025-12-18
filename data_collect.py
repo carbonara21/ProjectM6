@@ -2,11 +2,11 @@ import os
 import cv2
 import time
 
-DATA_DIR = 'data/BC_D'
+DATA_DIR = 'data/BC_D_2'
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
-number_of_classes = 6
+number_of_classes = 1
 dataset_size = 300
 
 cap = cv2.VideoCapture(0)

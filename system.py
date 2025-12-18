@@ -1,76 +1,30 @@
 import cv2
-import tkinter as tk
-from PIL import Image, ImageTk
 import mediapipe as mp
 import numpy as np
-import pygame
 import tensorflow as tf
 
-
-pygame.mixer.init()
-def play_video_then_start_pose():
-    video_path = r"C:\Users\s2887800\PycharmProjects\ProjectM6"
-    cap = cv2.VideoCapture(video_path)
-
-    if not cap.isOpened():
-        print("Error: Could not open video.")
-        start_pose_recognition()
-        return
-
-    def update_frame():
-        ret, frame = cap.read()
-        if not ret:
-            cap.release()
-            video_label.destroy()
-            start_pose_recognition()
-            return
-
-        frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        frame_resized = cv2.resize(frame, (root.winfo_width(), root.winfo_height()))
-        img = ImageTk.PhotoImage(Image.fromarray(frame_resized))
-
-        video_label.config(image=img)
-        video_label.image = img
-
-        video_label.after(15, update_frame)
-
-    update_frame()
 def start_pose_recognition():
-    root.destroy()
-
-    interpreter = tf.lite.Interpreter(model_path="M_BC_F.tflite")
+    interpreter = tf.lite.Interpreter(model_path="M_BC_D.tflite")
     interpreter.allocate_tensors()
-
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
-
-    sounds = {
-        "close": r"C:\Users\s2887800\PycharmProjects\ProjectM6\audios\CloseArms.mp3",
-        "elbows": r"C:\Users\s2887800\PycharmProjects\ProjectM6\audios\ElbowsTorso.mp3"
-    }
-
-    categories = ["BC_F_1", "BC_F_2", "BC_F_3", "BC_F_I1",
-                  "BC_F_I2"]
+    categories = ["BC_D_1", "BC_D_2", "BC_D_3",
+                  "BC_D_I1", "BC_D_I2", "BC_D_I3"]
+    arm_landmarks = [11, 12, 13, 14, 15, 16]
 
     mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose(static_image_mode=False)
+    pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
+    mp_selfie_segmentation = mp.solutions.selfie_segmentation
+    selfie_segmentation = mp_selfie_segmentation.SelfieSegmentation(model_selection=1)
 
     cap = cv2.VideoCapture(0)
-
-    cv2.namedWindow("Full Body Pose Recognition", cv2.WINDOW_NORMAL)
-    cv2.setWindowProperty("Full Body Pose Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
-
-    curl_sequence = [
-        "BC_F_1",
-        "BC_F_2",
-        "BC_F_3",
-        "BC_F_2",
-        "BC_F_1"
-    ]
-
+    curl_sequence = ["BC_D_1", "BC_D_2", "BC_D_3", "BC_D_2", "BC_D_1"]
     pose_history = []
     counter = 0
     last_stage = None
+
+    cv2.namedWindow("Full Body Pose Recognition", cv2.WINDOW_NORMAL)
+    cv2.setWindowProperty("Full Body Pose Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
 
     while True:
         ret, frame = cap.read()
@@ -78,135 +32,98 @@ def start_pose_recognition():
             break
 
         H, W, _ = frame.shape
-        img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = pose.process(img_rgb)
+        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = pose.process(frame_rgb)
 
-        data_norm = []
-        x_vals, y_vals = [], []
+        seg_results = selfie_segmentation.process(frame_rgb)
+        condition = np.stack((seg_results.segmentation_mask,) * 3, axis=-1) > 0.1
+        bg_image = cv2.GaussianBlur(frame, (55, 55), 0)
+        output_image = np.where(condition, frame, bg_image)
 
         if results.pose_landmarks:
             landmarks = results.pose_landmarks.landmark
 
-            for lm in landmarks:
-                x_vals.append(lm.x)
-                y_vals.append(lm.y)
+            left_shoulder = landmarks[11]
+            right_shoulder = landmarks[12]
 
-            if len(x_vals) == 33:
-                x_min, y_min = min(x_vals), min(y_vals)
+            ## Center as midpoint between shoulder
+            center_x = (left_shoulder.x + right_shoulder.x) / 2
+            center_y = (left_shoulder.y + right_shoulder.y) / 2
+            center_z = (left_shoulder.z + right_shoulder.z) / 2
 
-                for x, y in zip(x_vals, y_vals):
-                    data_norm.append(x - x_min)
-                    data_norm.append(y - y_min)
+            left_hip = landmarks[23]
+            right_hip = landmarks[24]
 
-                if len(data_norm) == 66:
-                    input_data = np.asarray([data_norm], dtype=np.float32)
+            ## Torso Center as midpoint between hips
+            torso_center_x = (left_hip.x + right_hip.x) / 2
+            torso_center_y = (left_hip.y + right_hip.y) / 2
+            torso_center_z = (left_hip.z + right_hip.z) / 2
+            ## Euclidean
+            torso_length = np.sqrt(
+                (center_x - torso_center_x) ** 2 +
+                (center_y - torso_center_y) ** 2 +
+                (center_z - torso_center_z) ** 2
+            ) + 1e-6
 
-                    interpreter.set_tensor(input_details[0]['index'], input_data)
-                    interpreter.invoke()
-                    output_data = interpreter.get_tensor(output_details[0]['index'])
+            data_raw = []
+            for idx in arm_landmarks:
+                lm = landmarks[idx]
+                x_norm = (lm.x - center_x) / torso_length
+                y_norm = (lm.y - center_y) / torso_length
+                z_norm = (lm.z - center_z) / torso_length
+                data_raw.extend([x_norm, y_norm, z_norm])
 
-                    predicted_char_index = np.argmax(output_data)
-                    predicted_char = categories[predicted_char_index]
+            input_data = np.asarray([data_raw], dtype=np.float32)
+            interpreter.set_tensor(input_details[0]['index'], input_data)
+            interpreter.invoke()
+            output_data = interpreter.get_tensor(output_details[0]['index'])
+            predicted_index = np.argmax(output_data)
+            predicted_class = categories[predicted_index]
 
-                    if predicted_char != last_stage:
-                        last_stage = predicted_char
-                        pose_history.append(predicted_char)
+            if predicted_class in ["BC_D_1", "BC_D_2", "BC_D_3"]:
+                skeleton_color = (0,255,0)
+            else:
+                skeleton_color = (0,0,255)
 
-                        if len(pose_history) > 5:
-                            pose_history = pose_history[-5:]
+            if predicted_class != last_stage:
+                last_stage = predicted_class
+                pose_history.append(predicted_class)
+                if len(pose_history) > 5:
+                    pose_history = pose_history[-5:]
+                print("POSE HISTORY:", pose_history)
 
-                        print("POSE HISTORY:", pose_history)
+                # Count curls
+                if pose_history == curl_sequence:
+                    counter += 1
+                    print(">>> FULL CURL COUNTED:", counter)
+                    pose_history = [pose_history[-1]]
 
-                        if pose_history == curl_sequence:
-                            counter += 1
-                            print(">>> FULL CURL COUNTED:", counter)
-                            if pose_history:
-                                last_pose = pose_history[-1]
-                                pose_history = [last_pose]
-                            else:
-                                pose_history = []
+            for connection in mp_pose.POSE_CONNECTIONS:
+                start_idx, end_idx = connection
 
-                    if predicted_char in ["BC_F_1", "BC_F_2", "BC_F_3"]:
-                        skeleton_color_outer = (0, 255, 0)
-                    else:
-                        skeleton_color_outer = (0, 0, 255)
+                if start_idx < 11 or end_idx < 11 or start_idx > 16 or end_idx > 16:
+                    continue
 
+                # safety check
+                if start_idx >= len(landmarks) or end_idx >= len(landmarks):
+                    continue
 
+                x1 = int(landmarks[start_idx].x * W)
+                y1 = int(landmarks[start_idx].y * H)
+                x2 = int(landmarks[end_idx].x * W)
+                y2 = int(landmarks[end_idx].y * H)
+                cv2.line(output_image, (x1, y1), (x2, y2), skeleton_color, 4)
 
+            # Display predicted stage and counter
+            font = cv2.FONT_HERSHEY_SIMPLEX
+            cv2.putText(output_image, predicted_class, ((W - 300)//2, 60), font, 1.3, (0, 0, 0), 2)
+            cv2.putText(output_image, f"Curls: {counter}", ((W - 300)//2, H - 60), font, 1.5, (0, 0, 0), 3)
 
-                    for connection in mp_pose.POSE_CONNECTIONS:
-                        start_idx, end_idx = connection
-
-                        # skip anything outside the arm range
-                        if start_idx < 11 or end_idx < 11 or start_idx > 16 or end_idx > 16:
-                            continue
-
-                        # draw arm connection here
-
-                        x1 = int(landmarks[start_idx].x * W)
-                        y1 = int(landmarks[start_idx].y * H)
-                        x2 = int(landmarks[end_idx].x * W)
-                        y2 = int(landmarks[end_idx].y * H)
-                        cv2.line(frame, (x1, y1), (x2, y2), skeleton_color_outer, 4)
-
-                    font = cv2.FONT_HERSHEY_SIMPLEX
-                    scale = 1.3
-                    thickness = 2
-                    (text_w, text_h), _ = cv2.getTextSize(predicted_char, font, scale, thickness)
-                    cv2.putText(frame, predicted_char, ((W - text_w)//2, 60), font, scale, (255, 255, 255), thickness)
-
-                    counter_text = f"Curls: {counter}"
-                    (text_w, text_h), _ = cv2.getTextSize(counter_text, font, 1.5, 3)
-                    cv2.putText(frame, counter_text, ((W - text_w)//2, H - 60), font, 1.5, (255, 255, 255), 3)
-
-        cv2.imshow("Full Body Pose Recognition", frame)
-
+        cv2.imshow("Full Body Pose Recognition", output_image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
     cv2.destroyAllWindows()
 
-
-root = tk.Tk()
-root.attributes('-fullscreen', True)
-root.title("Project")
-
-color1 = "#020f12"
-color2 = "#05d7ff"
-color3 = "#65e7ff"
-color4 = "BLACK"
-
-main_frame = tk.Frame(root, bg="#1a1a1a", pady=40)
-main_frame.pack(fill=tk.BOTH, expand=True)
-
-video_label = tk.Label(root, bg="#1a1a1a")
-video_label.place(relx=0.5, rely=0.5, anchor="center")
-
-title_label = tk.Label(
-    main_frame,
-    text="Welcome to the Bicep Curl Trainer",
-    font=("Arial", 36, "bold"),
-    fg="white",
-    bg="#1a1a1a"
-)
-title_label.pack(pady=20)
-
-button1 = tk.Button(
-    main_frame,
-    background=color2,
-    foreground=color4,
-    activebackground=color3,
-    activeforeground=color4,
-    highlightthickness=2,
-    width=13,
-    height=2,
-    border=0,
-    cursor="hand2",
-    text="Start",
-    font=("Arial", 16, "bold"),
-    command=play_video_then_start_pose
-)
-
-button1.pack()
-root.mainloop()
+start_pose_recognition()

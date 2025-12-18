@@ -12,14 +12,11 @@ import tensorflow as tf
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
 
-landmarks = 33 * 2
+landmarks = 33  # Number of landmarks (not multiplied by 2)
+expected_landmarks = landmarks * 3  # Each landmark has 3 coordinates (x, y, z)
 
-# Now 3D (x, y, z)
-expected_landmarks = len(landmarks) * 3
-
-dataset_dir = r"/data/D_S"
-categories = ["D_S_1", "D_S_2", "D_S_3",
-              "D_S_I1", "D_S_I2"]
+dataset_dir = r"C:\\Users\\s2887800\\PycharmProjects\\ProjectM6\\data\\D_S"
+categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 
 data = []
 labels = []
@@ -49,24 +46,33 @@ for dir_ in os.listdir(dataset_dir):
 
         x_vals = []
         y_vals = []
+        z_vals = []
         data_norm = []
 
+        # Collect all x, y, z coordinates
         for lm in results.pose_landmarks.landmark:
             x_vals.append(lm.x)
             y_vals.append(lm.y)
+            z_vals.append(lm.z)
 
-        # Min-max normalization per sample
-        x_min, y_min = min(x_vals), min(y_vals)
+        # Min-max normalization for all coordinates
+        x_min, x_max = min(x_vals), max(x_vals)
+        y_min, y_max = min(y_vals), max(y_vals)
+        z_min, z_max = min(z_vals), max(z_vals)
 
-        for (x, y) in zip(x_vals, y_vals):
-            data_norm.append(x - x_min)
-            data_norm.append(y - y_min)
+        # Normalize each landmark (x, y, z) within the range [0, 1]
+        for x, y, z in zip(x_vals, y_vals, z_vals):
+            x_norm = (x - x_min) / (x_max - x_min)
+            y_norm = (y - y_min) / (y_max - y_min)
+            z_norm = (z - z_min) / (z_max - z_min)
+            data_norm.extend([x_norm, y_norm, z_norm])
 
+        # Only add data if the number of normalized coordinates matches the expected number
         if len(data_norm) == expected_landmarks:
             data.append(data_norm)
             labels.append(dir_)
 
-# ------------------- Prepare data -------------------
+# Prepare data for training
 x = np.asarray(data, dtype=np.float32)
 y = np.asarray(labels)
 
@@ -74,10 +80,9 @@ encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
 y_encoded = to_categorical(y_encoded)
 
-x_train, x_test, y_train, y_test = train_test_split(
-    x, y_encoded, test_size=0.3, random_state=42
-)
+x_train, x_test, y_train, y_test = train_test_split(x, y_encoded, test_size=0.3, random_state=42)
 
+# Define model
 model = Sequential([
     Dense(128, activation='relu', input_shape=(expected_landmarks,)),
     Dropout(0.3),
@@ -90,7 +95,7 @@ model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accur
 model.fit(x_train, y_train, epochs=75, batch_size=16, verbose=1, validation_split=0.1)
 model.summary()
 
-# ------------------- Convert to TFLite -------------------
+# Convert model to TFLite format
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 with open("M_D_S.tflite", "wb") as f:

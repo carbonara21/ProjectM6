@@ -2,8 +2,10 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import tensorflow as tf
+import pygame
 
 def start_pose_recognition():
+    pygame.init()
     interpreter = tf.lite.Interpreter(model_path="M_BC_D.tflite")
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
@@ -126,12 +128,115 @@ def start_pose_recognition():
                 cv2.putText(output_image, "Legs are not far apart", ((W - 300) // 2, 60), font, 1.3, (0, 0, 0), 2)
 
             cv2.putText(output_image, f"Curls: {counter}", ((W - 300)//2, H - 60), font, 1.5, (0, 0, 0), 3)
-
+            line_feedback(output_image, landmarks, W, H, predicted_class)
+            play_sound(predicted_class)
         cv2.imshow("Full Body Pose Recognition", output_image)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
     cap.release()
     cv2.destroyAllWindows()
+
+def line_feedback(output_image, landmarks, W, H, predicted_class):
+    if predicted_class == "BC_D_1":
+        right_wrist = landmarks[16]
+        left_wrist = landmarks[15]
+
+        rw_x = int(right_wrist.x * W)
+        rw_y = int(right_wrist.y * H)
+        lw_x = int(left_wrist.x * W)
+        lw_y = int(left_wrist.y * H)
+
+        arrow_height = 100
+        arrow_offset = 20
+
+        start_point1 = (rw_x, rw_y - arrow_offset)
+        end_point1   = (rw_x, rw_y - arrow_offset - arrow_height)
+
+        start_point2 = (lw_x, lw_y - arrow_offset)
+        end_point2 = (lw_x, lw_y - arrow_offset - arrow_height)
+
+        cv2.arrowedLine(output_image, start_point1, end_point1,(0, 255, 0), 4,tipLength=0.3)
+        cv2.arrowedLine(output_image,start_point2,end_point2,(0, 255, 0),4,tipLength=0.3)
+    elif predicted_class == "BC_D_2":
+        right_wrist = landmarks[16]
+        left_wrist = landmarks[15]
+
+        rw_x = int(right_wrist.x * W)
+        rw_y = int(right_wrist.y * H)
+        lw_x = int(left_wrist.x * W)
+        lw_y = int(left_wrist.y * H)
+
+        arrow_height = 100
+        arrow_offset = 20
+
+        start_point1 = (rw_x, rw_y - arrow_offset)
+        end_point1 = (rw_x, rw_y - arrow_offset + arrow_height)
+
+        start_point2 = (lw_x, lw_y - arrow_offset)
+        end_point2 = (lw_x, lw_y - arrow_offset + arrow_height)
+
+        cv2.arrowedLine(output_image, start_point1, end_point1, (0, 255, 0), 4, tipLength=0.3)
+        cv2.arrowedLine(output_image, start_point2, end_point2, (0, 255, 0), 4, tipLength=0.3)
+    elif predicted_class in ["BC_D_I1", "BC_D_I2"]:
+        right_elbow = landmarks[14]
+        left_elbow = landmarks[13]
+
+        rw_x = int(right_elbow.x * W)
+        rw_y = int(right_elbow.y * H)
+        lw_x = int(left_elbow.x * W)
+        lw_y = int(left_elbow.y * H)
+
+        arrow_length = 100
+        arrow_offset = 20
+
+        start_point1 = (rw_x - arrow_length // 2, rw_y - arrow_offset)
+        end_point1 = (rw_x + arrow_length // 2, rw_y - arrow_offset)
+        start_point2 = (lw_x - arrow_length // 2, lw_y - arrow_offset)
+        end_point2 = (lw_x + arrow_length // 2, lw_y - arrow_offset)
+
+        cv2.arrowedLine(output_image, start_point1, end_point1, (0, 0, 255), 4, tipLength=0.3)
+        cv2.arrowedLine(output_image, start_point2, end_point2, (0, 0, 255), 4, tipLength=0.3)
+    elif predicted_class == ["BC_D_I3"]:
+        right_feet = landmarks[32]
+        left_feet = landmarks[31]
+
+        rw_x = int(right_feet.x * W)
+        rw_y = int(right_feet.y * H)
+        lw_x = int(left_feet.x * W)
+        lw_y = int(left_feet.y * H)
+
+        arrow_length = 100
+        arrow_offset = 20
+
+        start_point1 = (rw_x + arrow_length // 2, rw_y - arrow_offset)
+        end_point1 = (rw_x - arrow_length // 2, rw_y - arrow_offset)
+
+        start_point2 = (lw_x - arrow_length // 2, lw_y - arrow_offset)
+        end_point2 = (lw_x + arrow_length // 2, lw_y - arrow_offset)
+
+        cv2.arrowedLine(output_image, start_point1, end_point1, (0, 0, 255), 4, tipLength=0.3)
+        cv2.arrowedLine(output_image, start_point2, end_point2, (0, 0, 255), 4, tipLength=0.3)
+
+def play_sound(predicted_class):
+    sounds = {
+        "close": r"C:\Users\s2887800\PycharmProjects\ProjectM6\audios\Legs.mp3",
+        "elbows": r"C:\Users\s2887800\PycharmProjects\ProjectM6\audios\Elbows.mp3"
+    }
+    if predicted_class in ["BC_D_I3"]:
+        if not pygame.mixer.music.get_busy():
+            pygame.mixer.music.load(sounds["close"])
+            pygame.mixer.music.play(loops=0)
+
+    elif predicted_class in ["BC_D_I1", "BC_D_I2"]:
+        if not pygame.mixer.music.get_busy():
+                pygame.mixer.music.load(sounds["elbows"])
+                pygame.mixer.music.play(loops=0)
+    else:
+        pygame.mixer.music.stop()
+
+
+
+
 
 start_pose_recognition()

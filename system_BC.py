@@ -235,8 +235,4 @@ def play_sound(predicted_class):
     else:
         pygame.mixer.music.stop()
 
-
-
-
-
 start_pose_recognition()

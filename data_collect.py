@@ -6,7 +6,7 @@ DATA_DIR = 'data/BC_D_2'
 if not os.path.exists(DATA_DIR):
     os.makedirs(DATA_DIR)
 
-number_of_classes = 1
+number_of_classes = 2
 dataset_size = 300
 
 cap = cv2.VideoCapture(0)
@@ -43,7 +43,7 @@ for j in range(number_of_classes):
             continue
         cv2.imshow('frame', frame)
         cv2.waitKey(1)  # small delay
-        filename = os.path.join(class_dir, f'{counter}.jpg')
+        filename = os.path.join(class_dir, f'Person {counter}.jpg')
         cv2.imwrite(filename, frame)
         counter += 1
 

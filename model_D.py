@@ -9,18 +9,45 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 import tensorflow as tf
 
+# -----------------------
+# MediaPipe setup
+# -----------------------
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
 
-landmarks = 33  # Number of landmarks (not multiplied by 2)
-expected_landmarks = landmarks * 3  # Each landmark has 3 coordinates (x, y, z)
+# -----------------------
+# Constants
+# -----------------------
+NUM_LANDMARKS = 33
+NUM_ANGLES = 12
+EXPECTED_FEATURES = (NUM_LANDMARKS * 3) + NUM_ANGLES  # 111
 
-dataset_dir = r"C:\\Users\\s2887800\\PycharmProjects\\ProjectM6\\data\\D_S"
+dataset_dir = "/Users/felipecarbone/PycharmProjects/ProjectM6/data/D_S"
 categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 
 data = []
 labels = []
 
+# -----------------------
+# Angle helper
+# -----------------------
+def calculate_angle(a, b, c):
+    """
+    Returns angle at point b (radians)
+    """
+    a = np.array(a)
+    b = np.array(b)
+    c = np.array(c)
+
+    ba = a - b
+    bc = c - b
+
+    cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
+    return np.arccos(np.clip(cosine, -1.0, 1.0))
+
+# -----------------------
+# Dataset loop
+# -----------------------
 for dir_ in os.listdir(dataset_dir):
     dir_path = os.path.join(dataset_dir, dir_)
     if not os.path.isdir(dir_path):
@@ -39,40 +66,70 @@ for dir_ in os.listdir(dataset_dir):
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
 
         results = pose.process(img_rgb)
-
         if not results.pose_landmarks:
-            print(f"No pose landmarks detected: {img_name}")
             continue
 
-        x_vals = []
-        y_vals = []
-        z_vals = []
-        data_norm = []
+        # -----------------------
+        # Landmark normalization
+        # -----------------------
+        x_vals, y_vals, z_vals = [], [], []
 
-        # Collect all x, y, z coordinates
         for lm in results.pose_landmarks.landmark:
             x_vals.append(lm.x)
             y_vals.append(lm.y)
             z_vals.append(lm.z)
 
-        # Min-max normalization for all coordinates
         x_min, x_max = min(x_vals), max(x_vals)
         y_min, y_max = min(y_vals), max(y_vals)
         z_min, z_max = min(z_vals), max(z_vals)
 
-        # Normalize each landmark (x, y, z) within the range [0, 1]
+        data_norm = []
         for x, y, z in zip(x_vals, y_vals, z_vals):
-            x_norm = (x - x_min) / (x_max - x_min)
-            y_norm = (y - y_min) / (y_max - y_min)
-            z_norm = (z - z_min) / (z_max - z_min)
+            x_norm = (x - x_min) / (x_max - x_min + 1e-6)
+            y_norm = (y - y_min) / (y_max - y_min + 1e-6)
+            z_norm = (z - z_min) / (z_max - z_min + 1e-6)
             data_norm.extend([x_norm, y_norm, z_norm])
 
-        # Only add data if the number of normalized coordinates matches the expected number
-        if len(data_norm) == expected_landmarks:
+        # -----------------------
+        # Angle features (RAW coords)
+        # -----------------------
+        lm_xyz = [(lm.x, lm.y, lm.z) for lm in results.pose_landmarks.landmark]
+
+        angles = [
+            calculate_angle(lm_xyz[11], lm_xyz[13], lm_xyz[15]),  # left elbow
+            calculate_angle(lm_xyz[12], lm_xyz[14], lm_xyz[16]),  # right elbow
+
+            calculate_angle(lm_xyz[13], lm_xyz[11], lm_xyz[23]),  # left shoulder
+            calculate_angle(lm_xyz[14], lm_xyz[12], lm_xyz[24]),  # right shoulder
+
+            calculate_angle(lm_xyz[11], lm_xyz[23], lm_xyz[25]),  # left hip
+            calculate_angle(lm_xyz[12], lm_xyz[24], lm_xyz[26]),  # right hip
+
+            calculate_angle(lm_xyz[23], lm_xyz[25], lm_xyz[27]),  # left knee
+            calculate_angle(lm_xyz[24], lm_xyz[26], lm_xyz[28]),  # right knee
+
+            calculate_angle(lm_xyz[25], lm_xyz[27], lm_xyz[31]),  # left ankle
+            calculate_angle(lm_xyz[26], lm_xyz[28], lm_xyz[32]),  # right ankle
+
+            calculate_angle(lm_xyz[11], lm_xyz[12], lm_xyz[24]),  # upper back
+            calculate_angle(lm_xyz[11], lm_xyz[23], lm_xyz[24])   # lower back
+        ]
+
+        # Normalize angles → [0, 1]
+        angles_norm = [a / np.pi for a in angles]
+
+        data_norm.extend(angles_norm)
+
+        # -----------------------
+        # Final check
+        # -----------------------
+        if len(data_norm) == EXPECTED_FEATURES:
             data.append(data_norm)
             labels.append(dir_)
 
-# Prepare data for training
+# -----------------------
+# Training prep
+# -----------------------
 x = np.asarray(data, dtype=np.float32)
 y = np.asarray(labels)
 
@@ -80,23 +137,45 @@ encoder = LabelEncoder()
 y_encoded = encoder.fit_transform(y)
 y_encoded = to_categorical(y_encoded)
 
-x_train, x_test, y_train, y_test = train_test_split(x, y_encoded, test_size=0.3, random_state=42)
+x_train, x_test, y_train, y_test = train_test_split(
+    x, y_encoded, test_size=0.3, random_state=42
+)
 
-# Define model
+# -----------------------
+# Model
+# -----------------------
 model = Sequential([
-    Dense(128, activation='relu', input_shape=(expected_landmarks,)),
+    Dense(128, activation='relu', input_shape=(EXPECTED_FEATURES,)),
     Dropout(0.3),
     Dense(64, activation='relu'),
     Dropout(0.3),
     Dense(y_encoded.shape[1], activation='softmax')
 ])
 
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
-model.fit(x_train, y_train, epochs=75, batch_size=16, verbose=1, validation_split=0.1)
+model.compile(
+    optimizer='adam',
+    loss='categorical_crossentropy',
+    metrics=['accuracy']
+)
+
+model.fit(
+    x_train,
+    y_train,
+    epochs=75,
+    batch_size=16,
+    validation_split=0.1,
+    verbose=1
+)
+
 model.summary()
 
-# Convert model to TFLite format
+# -----------------------
+# Export TFLite
+# -----------------------
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
+
 with open("M_D_S.tflite", "wb") as f:
     f.write(tflite_model)
+
+print("✅ Model saved as M_D_S.tflite")

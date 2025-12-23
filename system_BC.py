@@ -21,7 +21,6 @@ def _transform_landmarks(pose_landmarks_list: list, landmark_buffers) -> list:
 
         transformed_landmarks_list.append(transformed_landmarks)
     return transformed_landmarks_list
-
 def sma_transform_func(x, y, z, visibility, presence, landmark_buffers, idx):
     buffer = landmark_buffers[idx]
     buffer.append([x, y, z])
@@ -47,7 +46,7 @@ def start_pose_recognition():
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
     curl_sequence = ["BC_D_1", "BC_D_2", "BC_D_1"]
     pose_history = []
     counter = 0

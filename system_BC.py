@@ -46,7 +46,7 @@ def start_pose_recognition():
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
     curl_sequence = ["BC_D_1", "BC_D_2", "BC_D_1"]
     pose_history = []
     counter = 0
@@ -148,8 +148,8 @@ def line_feedback(output_image, landmarks, W, H, predicted_class):
         arrow_height = 50
         arrow_offset = 20
 
-        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x, rw_y - arrow_offset - arrow_height), (0,255,0), 4, tipLength=0.3)
-        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x, lw_y - arrow_offset - arrow_height), (0,255,0), 4, tipLength=0.3)
+        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x, rw_y - arrow_offset - arrow_height), (0,255,0), 7, tipLength=0.3)
+        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x, lw_y - arrow_offset - arrow_height), (0,255,0), 7, tipLength=0.3)
     elif predicted_class == "BC_D_2":
         right_wrist = landmarks[16]
         left_wrist = landmarks[15]
@@ -158,8 +158,8 @@ def line_feedback(output_image, landmarks, W, H, predicted_class):
         arrow_height = 50
         arrow_offset = 20
 
-        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x, rw_y - arrow_offset + arrow_height), (0,255,0), 4, tipLength=0.3)
-        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x, lw_y - arrow_offset + arrow_height), (0,255,0), 4, tipLength=0.3)
+        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x, rw_y - arrow_offset + arrow_height), (0,255,0), 7, tipLength=0.3)
+        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x, lw_y - arrow_offset + arrow_height), (0,255,0), 7, tipLength=0.3)
     elif predicted_class == "BC_D_I1":
         right_elbow = landmarks[14]
         left_elbow = landmarks[13]
@@ -168,8 +168,8 @@ def line_feedback(output_image, landmarks, W, H, predicted_class):
         arrow_length = 50
         arrow_offset = 20
 
-        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x + arrow_length, rw_y - arrow_offset), (0,0,255),4,tipLength=0.3)
-        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x + arrow_length, lw_y - arrow_offset), (0,0,255),4,tipLength=0.3)
+        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x + arrow_length, rw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
+        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x + arrow_length, lw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
     elif predicted_class == "BC_D_I2":
         right_elbow = landmarks[14]
         left_elbow = landmarks[13]
@@ -178,7 +178,7 @@ def line_feedback(output_image, landmarks, W, H, predicted_class):
         arrow_length = 50
         arrow_offset = 20
 
-        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x - arrow_length, rw_y - arrow_offset), (0,0,255),4,tipLength=0.3)
-        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x - arrow_length, lw_y - arrow_offset), (0,0,255),4,tipLength=0.3)
+        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x - arrow_length, rw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
+        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x - arrow_length, lw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
 
 start_pose_recognition()

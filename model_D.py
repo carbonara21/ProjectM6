@@ -9,18 +9,15 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 import tensorflow as tf
 
-# -----------------------
-# MediaPipe setup
-# -----------------------
+
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
 
-# -----------------------
-# Constants
-# -----------------------
-NUM_LANDMARKS = 33
-NUM_ANGLES = 12
-EXPECTED_FEATURES = (NUM_LANDMARKS * 3) + NUM_ANGLES  # 111
+RIGHT_LANDMARK_IDS = [12, 14, 16, 24, 26, 28, 32]
+NUM_LANDMARKS = len(RIGHT_LANDMARK_IDS)   # 7
+NUM_ANGLES = 5
+EXPECTED_FEATURES = (NUM_LANDMARKS * 3) + NUM_ANGLES  # 26
+
 
 dataset_dir = "/Users/felipecarbone/PycharmProjects/ProjectM6/data/D_S"
 categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
@@ -28,9 +25,7 @@ categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 data = []
 labels = []
 
-# -----------------------
-# Angle helper
-# -----------------------
+
 def calculate_angle(a, b, c):
     """
     Returns angle at point b (radians)
@@ -45,9 +40,7 @@ def calculate_angle(a, b, c):
     cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
     return np.arccos(np.clip(cosine, -1.0, 1.0))
 
-# -----------------------
-# Dataset loop
-# -----------------------
+
 for dir_ in os.listdir(dataset_dir):
     dir_path = os.path.join(dataset_dir, dir_)
     if not os.path.isdir(dir_path):
@@ -74,7 +67,9 @@ for dir_ in os.listdir(dataset_dir):
         # -----------------------
         x_vals, y_vals, z_vals = [], [], []
 
-        for lm in results.pose_landmarks.landmark:
+        right_landmarks = [results.pose_landmarks.landmark[i] for i in RIGHT_LANDMARK_IDS]
+
+        for lm in right_landmarks:
             x_vals.append(lm.x)
             y_vals.append(lm.y)
             z_vals.append(lm.z)
@@ -96,23 +91,11 @@ for dir_ in os.listdir(dataset_dir):
         lm_xyz = [(lm.x, lm.y, lm.z) for lm in results.pose_landmarks.landmark]
 
         angles = [
-            calculate_angle(lm_xyz[11], lm_xyz[13], lm_xyz[15]),  # left elbow
             calculate_angle(lm_xyz[12], lm_xyz[14], lm_xyz[16]),  # right elbow
-
-            calculate_angle(lm_xyz[13], lm_xyz[11], lm_xyz[23]),  # left shoulder
             calculate_angle(lm_xyz[14], lm_xyz[12], lm_xyz[24]),  # right shoulder
-
-            calculate_angle(lm_xyz[11], lm_xyz[23], lm_xyz[25]),  # left hip
             calculate_angle(lm_xyz[12], lm_xyz[24], lm_xyz[26]),  # right hip
-
-            calculate_angle(lm_xyz[23], lm_xyz[25], lm_xyz[27]),  # left knee
             calculate_angle(lm_xyz[24], lm_xyz[26], lm_xyz[28]),  # right knee
-
-            calculate_angle(lm_xyz[25], lm_xyz[27], lm_xyz[31]),  # left ankle
-            calculate_angle(lm_xyz[26], lm_xyz[28], lm_xyz[32]),  # right ankle
-
-            calculate_angle(lm_xyz[11], lm_xyz[12], lm_xyz[24]),  # upper back
-            calculate_angle(lm_xyz[11], lm_xyz[23], lm_xyz[24])   # lower back
+            calculate_angle(lm_xyz[26], lm_xyz[28], lm_xyz[32])  # right ankle
         ]
 
         # Normalize angles → [0, 1]
@@ -169,9 +152,7 @@ model.fit(
 
 model.summary()
 
-# -----------------------
-# Export TFLite
-# -----------------------
+
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 

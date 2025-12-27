@@ -15,7 +15,7 @@ pose = mp_pose.Pose(static_image_mode=True)
 landmarks = [11, 12, 13, 14, 15, 16, 25, 26, 27, 28]
 expected_landmarks = len(landmarks) * 3
 
-dataset_dir = r"C:\\Users\\s2887800\\PycharmProjects\\ProjectM6\\data\\BC_D"
+dataset_dir = r"/Users/felipecarbone/PycharmProjects/ProjectM6/data/BC_D"
 categories = ["BC_D_1", "BC_D_2", "BC_D_I1", "BC_D_I2"]
 
 data = []
@@ -137,7 +137,6 @@ print(f"Test accuracy: {test_acc:.4f}")
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
-with open("M_BC_D.tflite", "wb") as f:
+with open("M_BC_D2.tflite", "wb") as f:
     f.write(tflite_model)
 
-print("TFLite model saved as M_BC_D.tflite")

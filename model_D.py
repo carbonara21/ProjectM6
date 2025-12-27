@@ -9,14 +9,13 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 import tensorflow as tf
 
-
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
 
-RIGHT_LANDMARK_IDS = [12, 14, 16, 24, 26, 28, 32]
-NUM_LANDMARKS = len(RIGHT_LANDMARK_IDS)   # 7
-NUM_ANGLES = 5
-EXPECTED_FEATURES = (NUM_LANDMARKS * 3) + NUM_ANGLES  # 26
+right_landmark_ids = [12, 14, 16, 24, 26, 28, 32]
+num_landmarks = len(right_landmark_ids)   # 7
+num_angles = 5
+expected_features = (num_landmarks * 3) + num_angles  # 26
 
 
 dataset_dir = "/Users/felipecarbone/PycharmProjects/ProjectM6/data/D_S"
@@ -24,7 +23,6 @@ categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 
 data = []
 labels = []
-
 
 def calculate_angle(a, b, c):
     """
@@ -39,7 +37,6 @@ def calculate_angle(a, b, c):
 
     cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
     return np.arccos(np.clip(cosine, -1.0, 1.0))
-
 
 for dir_ in os.listdir(dataset_dir):
     dir_path = os.path.join(dataset_dir, dir_)
@@ -62,12 +59,9 @@ for dir_ in os.listdir(dataset_dir):
         if not results.pose_landmarks:
             continue
 
-        # -----------------------
-        # Landmark normalization
-        # -----------------------
         x_vals, y_vals, z_vals = [], [], []
 
-        right_landmarks = [results.pose_landmarks.landmark[i] for i in RIGHT_LANDMARK_IDS]
+        right_landmarks = [results.pose_landmarks.landmark[i] for i in right_landmark_ids]
 
         for lm in right_landmarks:
             x_vals.append(lm.x)
@@ -85,9 +79,7 @@ for dir_ in os.listdir(dataset_dir):
             z_norm = (z - z_min) / (z_max - z_min + 1e-6)
             data_norm.extend([x_norm, y_norm, z_norm])
 
-        # -----------------------
-        # Angle features (RAW coords)
-        # -----------------------
+
         lm_xyz = [(lm.x, lm.y, lm.z) for lm in results.pose_landmarks.landmark]
 
         angles = [
@@ -106,13 +98,11 @@ for dir_ in os.listdir(dataset_dir):
         # -----------------------
         # Final check
         # -----------------------
-        if len(data_norm) == EXPECTED_FEATURES:
+        if len(data_norm) == expected_features:
             data.append(data_norm)
             labels.append(dir_)
 
-# -----------------------
-# Training prep
-# -----------------------
+
 x = np.asarray(data, dtype=np.float32)
 y = np.asarray(labels)
 
@@ -128,7 +118,7 @@ x_train, x_test, y_train, y_test = train_test_split(
 # Model
 # -----------------------
 model = Sequential([
-    Dense(128, activation='relu', input_shape=(EXPECTED_FEATURES,)),
+    Dense(128, activation='relu', input_shape=(expected_features,)),
     Dropout(0.3),
     Dense(64, activation='relu'),
     Dropout(0.3),
@@ -158,5 +148,3 @@ tflite_model = converter.convert()
 
 with open("M_D_S.tflite", "wb") as f:
     f.write(tflite_model)
-
-print("✅ Model saved as M_D_S.tflite")

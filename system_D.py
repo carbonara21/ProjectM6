@@ -22,7 +22,6 @@ def _transform_landmarks(pose_landmarks_list: list, landmark_buffers) -> list:
 
         transformed_landmarks_list.append(transformed_landmarks)
     return transformed_landmarks_list
-
 def sma_transform_func(x, y, z, visibility, presence, landmark_buffers, idx):
     buffer = landmark_buffers[idx]
     buffer.append([x, y, z])
@@ -65,6 +64,10 @@ def start_pose_recognition():
     )
 
     cap = cv2.VideoCapture(0)
+    sequence = ["D_S_1", "D_S_2", "D_S_3", "D_S_2", "D_S_1"]
+    pose_history = []
+    counter = 0
+    last_stage = None
 
     while True:
         ret, frame = cap.read()
@@ -79,9 +82,6 @@ def start_pose_recognition():
             pose_landmarks_list = [results.pose_landmarks.landmark]
             smoothed_landmarks = _transform_landmarks(pose_landmarks_list, landmark_buffers)[0]
 
-            # =======================
-            # RIGHT-SIDE FEATURE EXTRACTION ONLY
-            # =======================
             right_landmarks = [smoothed_landmarks[i] for i in RIGHT_LANDMARK_IDS]
 
             x_vals, y_vals, z_vals = [], [], []
@@ -102,25 +102,20 @@ def start_pose_recognition():
                 z_norm = 0.0 if z_max - z_min == 0 else (z - z_min) / (z_max - z_min)
                 data_norm.extend([x_norm, y_norm, z_norm])
 
-            # =======================
-            # RIGHT-SIDE ANGLES ONLY
-            # =======================
             lm_xyz = [(lm[0], lm[1], lm[2]) for lm in smoothed_landmarks]
 
             angles = [
-                calculate_angle(lm_xyz[12], lm_xyz[14], lm_xyz[16]),  # right elbow
-                calculate_angle(lm_xyz[14], lm_xyz[12], lm_xyz[24]),  # right shoulder
-                calculate_angle(lm_xyz[12], lm_xyz[24], lm_xyz[26]),  # right hip
-                calculate_angle(lm_xyz[24], lm_xyz[26], lm_xyz[28]),  # right knee
-                calculate_angle(lm_xyz[26], lm_xyz[28], lm_xyz[32])   # right ankle
+                calculate_angle(lm_xyz[12], lm_xyz[14], lm_xyz[16]),
+                calculate_angle(lm_xyz[14], lm_xyz[12], lm_xyz[24]),
+                calculate_angle(lm_xyz[12], lm_xyz[24], lm_xyz[26]),
+                calculate_angle(lm_xyz[24], lm_xyz[26], lm_xyz[28]),
+                calculate_angle(lm_xyz[26], lm_xyz[28], lm_xyz[32])
             ]
 
             angles_norm = [a / np.pi for a in angles]
             data_norm.extend(angles_norm)
 
-            # =======================
-            # INFERENCE
-            # =======================
+
             if len(data_norm) == EXPECTED_FEATURES:
                 input_data = np.asarray([data_norm], dtype=np.float32)
                 interpreter.set_tensor(input_details[0]['index'], input_data)
@@ -128,25 +123,29 @@ def start_pose_recognition():
                 output_data = interpreter.get_tensor(output_details[0]['index'])
                 predicted_class = CATEGORIES[np.argmax(output_data)]
 
-                cv2.putText(
-                    frame,
-                    predicted_class,
-                    (50, 80),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    2,
-                    (0, 255, 0),
-                    4
-                )
 
-            # =======================
-            # VISUALIZATION (UNCHANGED)
-            # =======================
-            for start_idx, end_idx in mp_pose.POSE_CONNECTIONS:
-                x1 = int(smoothed_landmarks[start_idx][0] * W)
-                y1 = int(smoothed_landmarks[start_idx][1] * H)
-                x2 = int(smoothed_landmarks[end_idx][0] * W)
-                y2 = int(smoothed_landmarks[end_idx][1] * H)
-                cv2.line(frame, (x1, y1), (x2, y2), (0, 255, 0), 3)
+                if predicted_class in ["D_S_1", "D_S_2", "D_S_3"]:
+                    skeleton_color = (0, 255, 0)
+                else:
+                    skeleton_color = (0, 0, 255)
+
+                if predicted_class != last_stage:
+                    last_stage = predicted_class
+                    pose_history.append(predicted_class)
+                    if len(pose_history) > 5:
+                        pose_history = pose_history[-5:]
+                    if pose_history == sequence:
+                        counter += 1
+                        pose_history = [pose_history[-1]]
+
+                for start_idx, end_idx in mp_pose.POSE_CONNECTIONS:
+                    x1 = int(smoothed_landmarks[start_idx][0] * W)
+                    y1 = int(smoothed_landmarks[start_idx][1] * H)
+                    x2 = int(smoothed_landmarks[end_idx][0] * W)
+                    y2 = int(smoothed_landmarks[end_idx][1] * H)
+                    cv2.line(frame, (x1, y1), (x2, y2), skeleton_color, 3)
+                font = cv2.FONT_HERSHEY_SIMPLEX
+                cv2.putText(frame, predicted_class, (W//2, H // 6), font, 3, (0, 0, 0), 3)
 
         cv2.imshow("Full Body Pose Recognition", frame)
         if cv2.waitKey(1) & 0xFF == ord('q'):

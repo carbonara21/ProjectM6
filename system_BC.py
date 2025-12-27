@@ -30,11 +30,9 @@ def sma_transform_func(x, y, z, visibility, presence, landmark_buffers, idx):
     else:
         return x, y, z, visibility, presence
 
-
-
 def start_pose_recognition():
     pygame.init()
-    interpreter = tf.lite.Interpreter(model_path="M_BC_D.tflite")
+    interpreter = tf.lite.Interpreter(model_path="M_BC_D2.tflite")
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
@@ -102,7 +100,10 @@ def start_pose_recognition():
             predicted_class = categories[predicted_index]
 
             # Skeleton color
-            skeleton_color = (0, 255, 0) if predicted_class in ["BC_D_1", "BC_D_2"] else (0, 0, 255)
+            if predicted_class in ["BC_D_1", "BC_D_2"]:
+                skeleton_color = (0, 255, 0)
+            else:
+                skeleton_color = (0, 0, 255)
 
             # Update pose history
             if predicted_class != last_stage:
@@ -115,12 +116,17 @@ def start_pose_recognition():
                     counter += 1
                     pose_history = [pose_history[-1]]
 
-            arm_connections = [
-                (11, 13), (13, 15),  # left arm
-                (12, 14), (14, 16)  # right arm
+            connections = [
+                (11, 13), (13, 15),
+
+                (12, 14), (14, 16),
+
+                (23, 25), (25, 27),
+
+                (24, 26), (26, 28)
             ]
 
-            for start_idx, end_idx in arm_connections:
+            for start_idx, end_idx in connections:
                 x1 = int(smoothed_landmarks[start_idx][0] * W)  # use smoothed landmarks
                 y1 = int(smoothed_landmarks[start_idx][1] * H)
                 x2 = int(smoothed_landmarks[end_idx][0] * W)
@@ -129,6 +135,7 @@ def start_pose_recognition():
 
             font = cv2.FONT_HERSHEY_SIMPLEX
             cv2.putText(frame, f"Curls: {counter}", ((W - 300)//2, H - 60), font, 1.5, (0, 0, 0), 3)
+            cv2.putText(frame, f"{predicted_class}", ((W - 300)//2, H //4), font, 1.5, (0, 0, 0), 3)
             line_feedback(frame, smoothed_landmarks, W, H, predicted_class)
 
         cv2.imshow("Full Body Pose Recognition", frame)
@@ -170,15 +177,35 @@ def line_feedback(output_image, landmarks, W, H, predicted_class):
 
         cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x + arrow_length, rw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
         cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x + arrow_length, lw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
+
     elif predicted_class == "BC_D_I2":
-        right_elbow = landmarks[14]
-        left_elbow = landmarks[13]
-        rw_x, rw_y = int(right_elbow[0]*W), int(right_elbow[1]*H)
-        lw_x, lw_y = int(left_elbow[0]*W), int(left_elbow[1]*H)
+        left_knee = landmarks[25]  # LEFT knee
+        right_knee = landmarks[26]  # RIGHT knee
+
+        lk_x, lk_y = int(left_knee[0] * W), int(left_knee[1] * H)
+        rk_x, rk_y = int(right_knee[0] * W), int(right_knee[1] * H)
+
         arrow_length = 50
         arrow_offset = 20
 
-        cv2.arrowedLine(output_image, (rw_x, rw_y - arrow_offset), (rw_x - arrow_length, rw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
-        cv2.arrowedLine(output_image, (lw_x, lw_y - arrow_offset), (lw_x - arrow_length, lw_y - arrow_offset), (0,0,255),7,tipLength=0.3)
+        # Left knee arrow (points RIGHT, inward)
+        cv2.arrowedLine(output_image,
+            (lk_x, lk_y - arrow_offset),
+            (lk_x + arrow_length, lk_y - arrow_offset),
+            (0, 0, 255),
+            7,
+            tipLength=0.3
+        )
+
+        # Right knee arrow (points LEFT, inward)
+        cv2.arrowedLine(
+            output_image,
+            (rk_x, rk_y - arrow_offset),
+            (rk_x - arrow_length, rk_y - arrow_offset),
+            (0, 0, 255),
+            7,
+            tipLength=0.3
+        )
+
 
 start_pose_recognition()

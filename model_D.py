@@ -9,14 +9,11 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 import tensorflow as tf
 
+# -----------------------
+# MediaPipe
+# -----------------------
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
-
-right_landmark_ids = [12, 14, 16, 24, 26, 28, 32]
-num_landmarks = len(right_landmark_ids)   # 7
-num_angles = 5
-expected_features = (num_landmarks * 3) + num_angles  # 26
-
 
 dataset_dir = "/Users/felipecarbone/PycharmProjects/ProjectM6/data/D_S"
 categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
@@ -24,13 +21,13 @@ categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 data = []
 labels = []
 
+# -----------------------
+# 2D Angle function (NO Z)
+# -----------------------
 def calculate_angle(a, b, c):
-    """
-    Returns angle at point b (radians)
-    """
-    a = np.array(a)
-    b = np.array(b)
-    c = np.array(c)
+    a = np.array(a[:2])
+    b = np.array(b[:2])
+    c = np.array(c[:2])
 
     ba = a - b
     bc = c - b
@@ -38,6 +35,9 @@ def calculate_angle(a, b, c):
     cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
     return np.arccos(np.clip(cosine, -1.0, 1.0))
 
+# -----------------------
+# Dataset loop
+# -----------------------
 for dir_ in os.listdir(dataset_dir):
     dir_path = os.path.join(dataset_dir, dir_)
     if not os.path.isdir(dir_path):
@@ -47,68 +47,67 @@ for dir_ in os.listdir(dataset_dir):
 
     for img_name in os.listdir(dir_path):
         img_path = os.path.join(dir_path, img_name)
-
         img = cv2.imread(img_path)
         if img is None:
             continue
 
-        img = cv2.resize(img, (640, 480))
         img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
         results = pose.process(img_rgb)
+
         if not results.pose_landmarks:
             continue
 
-        x_vals, y_vals, z_vals = [], [], []
+        lm = results.pose_landmarks.landmark
 
-        right_landmarks = [results.pose_landmarks.landmark[i] for i in right_landmark_ids]
-
-        for lm in right_landmarks:
-            x_vals.append(lm.x)
-            y_vals.append(lm.y)
-            z_vals.append(lm.z)
-
-        x_min, x_max = min(x_vals), max(x_vals)
-        y_min, y_max = min(y_vals), max(y_vals)
-        z_min, z_max = min(z_vals), max(z_vals)
-
-        data_norm = []
-        for x, y, z in zip(x_vals, y_vals, z_vals):
-            x_norm = (x - x_min) / (x_max - x_min + 1e-6)
-            y_norm = (y - y_min) / (y_max - y_min + 1e-6)
-            z_norm = (z - z_min) / (z_max - z_min + 1e-6)
-            data_norm.extend([x_norm, y_norm, z_norm])
-
-
-        lm_xyz = [(lm.x, lm.y, lm.z) for lm in results.pose_landmarks.landmark]
-
+        # -----------------------
+        # Right-side 2D angles ONLY
+        # -----------------------
         angles = [
-            calculate_angle(lm_xyz[12], lm_xyz[14], lm_xyz[16]),  # right elbow
-            calculate_angle(lm_xyz[14], lm_xyz[12], lm_xyz[24]),  # right shoulder
-            calculate_angle(lm_xyz[12], lm_xyz[24], lm_xyz[26]),  # right hip
-            calculate_angle(lm_xyz[24], lm_xyz[26], lm_xyz[28]),  # right knee
-            calculate_angle(lm_xyz[26], lm_xyz[28], lm_xyz[32])  # right ankle
+            calculate_angle(
+                (lm[12].x, lm[12].y),
+                (lm[14].x, lm[14].y),
+                (lm[16].x, lm[16].y)
+            ),  # elbow
+
+            calculate_angle(
+                (lm[14].x, lm[14].y),
+                (lm[12].x, lm[12].y),
+                (lm[24].x, lm[24].y)
+            ),  # shoulder
+
+            calculate_angle(
+                (lm[12].x, lm[12].y),
+                (lm[24].x, lm[24].y),
+                (lm[26].x, lm[26].y)
+            ),  # hip
+
+            calculate_angle(
+                (lm[24].x, lm[24].y),
+                (lm[26].x, lm[26].y),
+                (lm[28].x, lm[28].y)
+            ),  # knee
+
+            calculate_angle(
+                (lm[26].x, lm[26].y),
+                (lm[28].x, lm[28].y),
+                (lm[32].x, lm[32].y)
+            )   # ankle
         ]
 
-        # Normalize angles → [0, 1]
+        # Normalize angles → [0,1]
         angles_norm = [a / np.pi for a in angles]
 
-        data_norm.extend(angles_norm)
+        data.append(angles_norm)
+        labels.append(dir_)
 
-        # -----------------------
-        # Final check
-        # -----------------------
-        if len(data_norm) == expected_features:
-            data.append(data_norm)
-            labels.append(dir_)
-
-
+# -----------------------
+# Prepare data
+# -----------------------
 x = np.asarray(data, dtype=np.float32)
 y = np.asarray(labels)
 
 encoder = LabelEncoder()
-y_encoded = encoder.fit_transform(y)
-y_encoded = to_categorical(y_encoded)
+y_encoded = to_categorical(encoder.fit_transform(y))
 
 x_train, x_test, y_train, y_test = train_test_split(
     x, y_encoded, test_size=0.3, random_state=42
@@ -118,10 +117,9 @@ x_train, x_test, y_train, y_test = train_test_split(
 # Model
 # -----------------------
 model = Sequential([
-    Dense(128, activation='relu', input_shape=(expected_features,)),
+    Dense(64, activation='relu', input_shape=(5,)),
     Dropout(0.3),
-    Dense(64, activation='relu'),
-    Dropout(0.3),
+    Dense(32, activation='relu'),
     Dense(y_encoded.shape[1], activation='softmax')
 ])
 
@@ -140,11 +138,11 @@ model.fit(
     verbose=1
 )
 
-model.summary()
-
-
+# -----------------------
+# Export TFLite
+# -----------------------
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
-with open("M_D_S.tflite", "wb") as f:
+with open("M_D_S2.tflite", "wb") as f:
     f.write(tflite_model)

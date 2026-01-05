@@ -48,7 +48,7 @@ def start_pose_recognition():
 
     ## If it still doesnt work try these
     ## FOR WINDOWS
-    ##cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+    ##cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
     ## FOR MAC
     ## cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
 

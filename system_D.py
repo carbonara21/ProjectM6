@@ -4,7 +4,6 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 
-
 def _transform_landmarks(pose_landmarks_list: list, landmark_buffers) -> list:
     transformed_landmarks_list = []
 
@@ -28,7 +27,6 @@ def sma_transform_func(x, y, z, landmark_buffers, idx):
         return np.mean(buffer, axis=0)
     return x, y, z
 
-
 def calculate_angle(a, b, c):
     a = np.array(a[:2])
     b = np.array(b[:2])
@@ -40,25 +38,16 @@ def calculate_angle(a, b, c):
     cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
     return np.arccos(np.clip(cosine, -1.0, 1.0))
 
-
-EXPECTED_FEATURES = 5
-CATEGORIES = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
-
-
 def start_pose_recognition():
     interpreter = tf.lite.Interpreter(model_path="M_D_S2.tflite")
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()
+    categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 
     landmark_buffers = [deque(maxlen=3) for _ in range(33)]
-
     mp_pose = mp.solutions.pose
-    pose = mp_pose.Pose(
-        static_image_mode=False,
-        min_detection_confidence=0.7,
-        min_tracking_confidence=0.7
-    )
+    pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
     cap = cv2.VideoCapture(0)
 
@@ -95,17 +84,10 @@ def start_pose_recognition():
             interpreter.set_tensor(input_details[0]['index'], input_data)
             interpreter.invoke()
             output_data = interpreter.get_tensor(output_details[0]['index'])
-            predicted_class = CATEGORIES[np.argmax(output_data)]
+            predicted_class = categories[np.argmax(output_data)]
 
-            cv2.putText(
-                frame,
-                predicted_class,
-                (W//2, H//4),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                6,
-                (255, 255, 255),
-                7
-            )
+            cv2.putText(frame, predicted_class, (W//2, H//4), cv2.FONT_HERSHEY_SIMPLEX, 6, (255, 255, 255),7)
+            line_feedback(frame, smoothed_landmarks, W, H, predicted_class)
 
             if predicted_class in ["D_S_1", "D_S_2", "D_S_3"]:
                 skeleton_color = (0, 255, 0)
@@ -125,5 +107,64 @@ def start_pose_recognition():
 
     cap.release()
     cv2.destroyAllWindows()
+
+def line_feedback(output_image, landmarks, W, H, predicted_class):
+
+    arrow_offset = 20
+    arrow_height = 50
+    arrow_length = 50
+
+    if predicted_class in ["D_S_1", "D_S_2", "D_S_3"]:
+        arrow_color = (0, 255, 0)   # GREEN = correct
+    else:
+        arrow_color = (0, 0, 255)   # RED = incorrect
+
+    if predicted_class == "D_S_1":
+        head = landmarks[0]
+        right_shoulder = landmarks[12]
+        right_hip = landmarks[24]
+
+        hx, hy = int(head[0] * W), int(head[1] * H)
+        sx, sy = int(right_shoulder[0] * W), int(right_shoulder[1] * H)
+        hip_x, hip_y = int(right_hip[0] * W), int(right_hip[1] * H)
+
+        cv2.arrowedLine(output_image,(hx, hy - arrow_offset),(hx, hy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+        cv2.arrowedLine(output_image,(sx, sy - arrow_offset),(sx, sy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+        cv2.arrowedLine(output_image,(hip_x, hip_y - arrow_offset),(hip_x, hip_y - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+
+    elif predicted_class == "D_S_2":
+        right_hip = landmarks[24]
+        right_shoulder = landmarks[12]
+
+        hip_x, hip_y = int(right_hip[0] * W), int(right_hip[1] * H)
+        sh_x, sh_y = int(right_shoulder[0] * W), int(right_shoulder[1] * H)
+
+        cv2.arrowedLine(output_image,(hip_x, hip_y - arrow_offset),(hip_x + arrow_length, hip_y - arrow_offset),arrow_color, 7, tipLength=0.3)
+        cv2.arrowedLine(output_image,(sh_x, sh_y - arrow_offset),(sh_x, sh_y - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+
+    elif predicted_class == "D_S_I1":
+        head = landmarks[0]
+        right_shoulder = landmarks[12]
+        right_hip = landmarks[24]
+
+        hx, hy = int(head[0] * W), int(head[1] * H)
+        sx, sy = int(right_shoulder[0] * W), int(right_shoulder[1] * H)
+        hip_x, hip_y = int(right_hip[0] * W), int(right_hip[1] * H)
+
+        cv2.arrowedLine(output_image,(hx, hy - arrow_offset),(hx, hy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+        cv2.arrowedLine(output_image,(sx, sy - arrow_offset),(sx, sy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+        cv2.arrowedLine(output_image,(hip_x, hip_y + arrow_offset),(hip_x, hip_y + arrow_offset + arrow_height),arrow_color, 7, tipLength=0.3)
+    elif predicted_class == "D_S_I2":
+        head = landmarks[0]
+        right_shoulder = landmarks[12]
+        right_hip = landmarks[24]
+
+        hx, hy = int(head[0] * W), int(head[1] * H)
+        sh_x, sh_y = int(right_shoulder[0] * W), int(right_shoulder[1] * H)
+        hip_x, hip_y = int(right_hip[0] * W), int(right_hip[1] * H)
+
+        cv2.arrowedLine(output_image,(hx, hy - arrow_offset),(hx, hy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+        cv2.arrowedLine(output_image,(sh_x, sh_y - arrow_offset),(sh_x, sh_y - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+        cv2.arrowedLine(output_image,(hip_x, hip_y - arrow_offset),(hip_x, hip_y - arrow_offset + arrow_height),arrow_color, 7, tipLength=0.3)
 
 start_pose_recognition()

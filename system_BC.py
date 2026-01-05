@@ -32,7 +32,7 @@ def sma_transform_func(x, y, z, visibility, presence, landmark_buffers, idx):
 
 def start_pose_recognition():
     pygame.init()
-    interpreter = tf.lite.Interpreter(model_path="M_BC_D2.tflite")
+    interpreter = tf.lite.Interpreter(model_path="models/BicepCurl_Model.tflite")
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()

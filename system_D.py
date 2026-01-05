@@ -39,7 +39,7 @@ def calculate_angle(a, b, c):
     return np.arccos(np.clip(cosine, -1.0, 1.0))
 
 def start_pose_recognition():
-    interpreter = tf.lite.Interpreter(model_path="M_D_S2.tflite")
+    interpreter = tf.lite.Interpreter(model_path="models/DeadLift_Model.tflite")
     interpreter.allocate_tensors()
     input_details = interpreter.get_input_details()
     output_details = interpreter.get_output_details()

@@ -111,5 +111,5 @@ model.fit(x_train, y_train, epochs=75, batch_size=16, validation_split=0.1, verb
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
-with open("M_D_S2.tflite", "wb") as f:
+with open("models/DeadLift_Model.tflite", "wb") as f:
     f.write(tflite_model)

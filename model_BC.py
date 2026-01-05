@@ -137,6 +137,6 @@ print(f"Test accuracy: {test_acc:.4f}")
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 
-with open("M_BC_D2.tflite", "wb") as f:
+with open("models/BicepCurl_Model.tflite", "wb") as f:
     f.write(tflite_model)
 

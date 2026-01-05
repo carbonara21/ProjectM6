@@ -9,9 +9,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, Dropout
 import tensorflow as tf
 
-# -----------------------
-# MediaPipe
-# -----------------------
+
 mp_pose = mp.solutions.pose
 pose = mp_pose.Pose(static_image_mode=True)
 
@@ -21,9 +19,7 @@ categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 data = []
 labels = []
 
-# -----------------------
-# 2D Angle function (NO Z)
-# -----------------------
+
 def calculate_angle(a, b, c):
     a = np.array(a[:2])
     b = np.array(b[:2])
@@ -35,9 +31,7 @@ def calculate_angle(a, b, c):
     cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
     return np.arccos(np.clip(cosine, -1.0, 1.0))
 
-# -----------------------
-# Dataset loop
-# -----------------------
+
 for dir_ in os.listdir(dataset_dir):
     dir_path = os.path.join(dataset_dir, dir_)
     if not os.path.isdir(dir_path):
@@ -59,9 +53,7 @@ for dir_ in os.listdir(dataset_dir):
 
         lm = results.pose_landmarks.landmark
 
-        # -----------------------
-        # Right-side 2D angles ONLY
-        # -----------------------
+
         angles = [
             calculate_angle(
                 (lm[12].x, lm[12].y),
@@ -100,47 +92,22 @@ for dir_ in os.listdir(dataset_dir):
         data.append(angles_norm)
         labels.append(dir_)
 
-# -----------------------
-# Prepare data
-# -----------------------
+
 x = np.asarray(data, dtype=np.float32)
 y = np.asarray(labels)
 
 encoder = LabelEncoder()
 y_encoded = to_categorical(encoder.fit_transform(y))
 
-x_train, x_test, y_train, y_test = train_test_split(
-    x, y_encoded, test_size=0.3, random_state=42
-)
+x_train, x_test, y_train, y_test = train_test_split(x, y_encoded, test_size=0.3, random_state=42)
 
-# -----------------------
-# Model
-# -----------------------
-model = Sequential([
-    Dense(64, activation='relu', input_shape=(5,)),
-    Dropout(0.3),
-    Dense(32, activation='relu'),
-    Dense(y_encoded.shape[1], activation='softmax')
-])
+model = Sequential([Dense(64, activation='relu', input_shape=(5,)), Dropout(0.3), Dense(32, activation='relu'), Dense(y_encoded.shape[1], activation='softmax')])
 
-model.compile(
-    optimizer='adam',
-    loss='categorical_crossentropy',
-    metrics=['accuracy']
-)
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-model.fit(
-    x_train,
-    y_train,
-    epochs=75,
-    batch_size=16,
-    validation_split=0.1,
-    verbose=1
-)
+model.fit(x_train, y_train, epochs=75, batch_size=16, validation_split=0.1, verbose=1)
 
-# -----------------------
-# Export TFLite
-# -----------------------
+
 converter = tf.lite.TFLiteConverter.from_keras_model(model)
 tflite_model = converter.convert()
 

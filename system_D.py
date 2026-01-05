@@ -4,9 +4,7 @@ import numpy as np
 import tensorflow as tf
 from collections import deque
 
-# =======================
-# SMA (UNCHANGED)
-# =======================
+
 def _transform_landmarks(pose_landmarks_list: list, landmark_buffers) -> list:
     transformed_landmarks_list = []
 
@@ -30,9 +28,7 @@ def sma_transform_func(x, y, z, landmark_buffers, idx):
         return np.mean(buffer, axis=0)
     return x, y, z
 
-# =======================
-# 2D Angle function (NO Z)
-# =======================
+
 def calculate_angle(a, b, c):
     a = np.array(a[:2])
     b = np.array(b[:2])
@@ -44,15 +40,11 @@ def calculate_angle(a, b, c):
     cosine = np.dot(ba, bc) / (np.linalg.norm(ba) * np.linalg.norm(bc) + 1e-6)
     return np.arccos(np.clip(cosine, -1.0, 1.0))
 
-# =======================
-# CONSTANTS
-# =======================
+
 EXPECTED_FEATURES = 5
 CATEGORIES = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
 
-# =======================
-# MAIN
-# =======================
+
 def start_pose_recognition():
     interpreter = tf.lite.Interpreter(model_path="M_D_S2.tflite")
     interpreter.allocate_tensors()
@@ -87,9 +79,7 @@ def start_pose_recognition():
 
             lm = smoothed_landmarks
 
-            # =======================
-            # RIGHT-SIDE 2D ANGLES ONLY
-            # =======================
+
             angles = [
                 calculate_angle(lm[12], lm[14], lm[16]),  # elbow
                 calculate_angle(lm[14], lm[12], lm[24]),  # shoulder
@@ -101,9 +91,7 @@ def start_pose_recognition():
             angles_norm = [a / np.pi for a in angles]
             input_data = np.asarray([angles_norm], dtype=np.float32)
 
-            # =======================
-            # INFERENCE
-            # =======================
+
             interpreter.set_tensor(input_details[0]['index'], input_data)
             interpreter.invoke()
             output_data = interpreter.get_tensor(output_details[0]['index'])
@@ -112,7 +100,7 @@ def start_pose_recognition():
             cv2.putText(
                 frame,
                 predicted_class,
-                (50, 80),
+                (W//2, H//4),
                 cv2.FONT_HERSHEY_SIMPLEX,
                 6,
                 (255, 255, 255),

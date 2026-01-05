@@ -44,7 +44,14 @@ def start_pose_recognition():
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(1)
+
+    ## If it still doesnt work try these
+    ## FOR WINDOWS
+    ##cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+    ## FOR MAC
+    ## cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
+
     curl_sequence = ["BC_D_1", "BC_D_2", "BC_D_1"]
     pose_history = []
     counter = 0

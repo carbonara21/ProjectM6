@@ -39,28 +39,16 @@ def calculate_angle(a, b, c):
     return np.arccos(np.clip(cosine, -1.0, 1.0))
 
 def start_pose_recognition():
-    interpreter = tf.lite.Interpreter(model_path="models/DeadLift_Model.tflite")
-    interpreter.allocate_tensors()
-    input_details = interpreter.get_input_details()
-    output_details = interpreter.get_output_details()
     categories = ["D_S_1", "D_S_2", "D_S_3", "D_S_I1", "D_S_I2"]
-
     landmark_buffers = [deque(maxlen=3) for _ in range(33)]
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
-
     cap = cv2.VideoCapture(0)
 
     sequence = ["D_S_1", "D_S_2", "D_S_3", "D_S_2", "D_S_1"]
     pose_history = []
     counter = 0
     last_pose = None
-
-    ## If it still doesnt work try these
-    ## FOR WINDOWS
-    ##cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    ## FOR MAC
-    ## cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
 
 
     while True:
@@ -73,6 +61,11 @@ def start_pose_recognition():
         results = pose.process(frame_rgb)
 
         if results.pose_landmarks:
+            interpreter = tf.lite.Interpreter(model_path="models/DeadLift_Model.tflite")
+            interpreter.allocate_tensors()
+            input_details = interpreter.get_input_details()
+            output_details = interpreter.get_output_details()
+
             smoothed_landmarks = _transform_landmarks(
                 [results.pose_landmarks.landmark],
                 landmark_buffers
@@ -99,7 +92,8 @@ def start_pose_recognition():
             predicted_class = categories[np.argmax(output_data)]
 
             cv2.putText(frame, predicted_class, (W//2, H//4), cv2.FONT_HERSHEY_SIMPLEX, 6, (255, 255, 255),7)
-            line_feedback(frame, smoothed_landmarks, W, H, predicted_class)
+            cv2.putText(frame, f"Count: {counter}", ((W - 300)//2, H - 60), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 0), 3)
+            line_feedback(frame, smoothed_landmarks, W, H, predicted_class, last_pose)
 
             if predicted_class in ["D_S_1", "D_S_2", "D_S_3"]:
                 skeleton_color = (0, 255, 0)

@@ -49,7 +49,12 @@ def start_pose_recognition():
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
+
+    sequence = ["D_S_1", "D_S_2", "D_S_3", "D_S_2", "D_S_1"]
+    pose_history = []
+    counter = 0
+    last_pose = None
 
     ## If it still doesnt work try these
     ## FOR WINDOWS
@@ -101,6 +106,16 @@ def start_pose_recognition():
             else:
                 skeleton_color = (0, 0, 255)
 
+            if predicted_class != last_pose:
+                last_pose = predicted_class
+                pose_history.append(predicted_class)
+                if len(pose_history) > 3:
+                    pose_history = pose_history[-3:]
+
+                if pose_history == sequence:
+                    counter += 1
+                    pose_history = [pose_history[-1]]
+
             for start_idx, end_idx in mp_pose.POSE_CONNECTIONS:
                 x1 = int(lm[start_idx][0] * W)
                 y1 = int(lm[start_idx][1] * H)
@@ -108,14 +123,14 @@ def start_pose_recognition():
                 y2 = int(lm[end_idx][1] * H)
                 cv2.line(frame, (x1, y1), (x2, y2), skeleton_color, 2)
 
-        cv2.imshow("Deadlift – Right Side Angles Only", frame)
+        cv2.imshow("Deadlift", frame)
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
     cap.release()
     cv2.destroyAllWindows()
 
-def line_feedback(output_image, landmarks, W, H, predicted_class):
+def line_feedback(output_image, landmarks, W, H, predicted_class, last_pose):
 
     arrow_offset = 20
     arrow_height = 50
@@ -138,8 +153,7 @@ def line_feedback(output_image, landmarks, W, H, predicted_class):
         cv2.arrowedLine(output_image,(hx, hy - arrow_offset),(hx, hy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
         cv2.arrowedLine(output_image,(sx, sy - arrow_offset),(sx, sy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
         cv2.arrowedLine(output_image,(hip_x, hip_y - arrow_offset),(hip_x, hip_y - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
-
-    elif predicted_class == "D_S_2":
+    elif predicted_class == "D_S_2" and last_pose == "D_S_1":
         right_hip = landmarks[24]
         right_shoulder = landmarks[12]
 
@@ -148,6 +162,15 @@ def line_feedback(output_image, landmarks, W, H, predicted_class):
 
         cv2.arrowedLine(output_image,(hip_x, hip_y - arrow_offset),(hip_x + arrow_length, hip_y - arrow_offset),arrow_color, 7, tipLength=0.3)
         cv2.arrowedLine(output_image,(sh_x, sh_y - arrow_offset),(sh_x, sh_y - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
+    elif predicted_class == "D_S_2" and last_pose == "D_S_3":
+        right_hip = landmarks[24]
+        right_shoulder = landmarks[12]
+
+        hip_x, hip_y = int(right_hip[0] * W), int(right_hip[1] * H)
+        sh_x, sh_y = int(right_shoulder[0] * W), int(right_shoulder[1] * H)
+
+        cv2.arrowedLine(output_image,(hip_x, hip_y + arrow_offset),(hip_x, hip_y + arrow_offset + arrow_height),arrow_color,7,tipLength=0.3)
+        cv2.arrowedLine(output_image,(sh_x, sh_y + arrow_offset),(sh_x, sh_y + arrow_offset + arrow_height),arrow_color,7,tipLength=0.3)
 
     elif predicted_class == "D_S_I1":
         head = landmarks[0]

@@ -44,7 +44,7 @@ def start_pose_recognition():
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(static_image_mode=False, min_detection_confidence=0.7, min_tracking_confidence=0.7)
 
-    cap = cv2.VideoCapture(1)
+    cap = cv2.VideoCapture(0)
 
     ## If it still doesnt work try these
     ## FOR WINDOWS
@@ -55,7 +55,8 @@ def start_pose_recognition():
     curl_sequence = ["BC_D_1", "BC_D_2", "BC_D_1"]
     pose_history = []
     counter = 0
-    last_stage = None
+    last_pose = None
+
 
     cv2.namedWindow("Full Body Pose Recognition", cv2.WINDOW_NORMAL)
     cv2.setWindowProperty("Full Body Pose Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -113,8 +114,8 @@ def start_pose_recognition():
                 skeleton_color = (0, 0, 255)
 
             # Update pose history
-            if predicted_class != last_stage:
-                last_stage = predicted_class
+            if predicted_class != last_pose:
+                last_pose = predicted_class
                 pose_history.append(predicted_class)
                 if len(pose_history) > 3:
                     pose_history = pose_history[-3:]

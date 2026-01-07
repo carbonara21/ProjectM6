@@ -19,14 +19,12 @@ def _transform_landmarks(pose_landmarks_list: list, landmark_buffers) -> list:
         transformed_landmarks_list.append(transformed_landmarks)
 
     return transformed_landmarks_list
-
 def sma_transform_func(x, y, z, landmark_buffers, idx):
     buffer = landmark_buffers[idx]
     buffer.append([x, y, z])
     if len(buffer) == buffer.maxlen:
         return np.mean(buffer, axis=0)
     return x, y, z
-
 def calculate_angle(a, b, c):
     a = np.array(a[:2])
     b = np.array(b[:2])
@@ -93,7 +91,7 @@ def start_pose_recognition():
 
             cv2.putText(frame, predicted_class, (W//2, H//4), cv2.FONT_HERSHEY_SIMPLEX, 6, (255, 255, 255),7)
             cv2.putText(frame, f"Count: {counter}", ((W - 300)//2, H - 60), cv2.FONT_HERSHEY_SIMPLEX, 1.5, (0, 0, 0), 3)
-            line_feedback(frame, smoothed_landmarks, W, H, predicted_class, last_pose)
+            line_feedback(frame, smoothed_landmarks, W, H, predicted_class, pose_history)
 
             if predicted_class in ["D_S_1", "D_S_2", "D_S_3"]:
                 skeleton_color = (0, 255, 0)
@@ -124,11 +122,15 @@ def start_pose_recognition():
     cap.release()
     cv2.destroyAllWindows()
 
-def line_feedback(output_image, landmarks, W, H, predicted_class, last_pose):
-
+def line_feedback(output_image, landmarks, W, H, predicted_class, pose_history):
+    if len(pose_history) >= 2:
+        previous_pose = pose_history[-2]
+    else:
+        previous_pose = None
     arrow_offset = 20
-    arrow_height = 50
-    arrow_length = 50
+    arrow_height = 100
+    arrow_length = 100
+
 
     if predicted_class in ["D_S_1", "D_S_2", "D_S_3"]:
         arrow_color = (0, 255, 0)   # GREEN = correct
@@ -147,7 +149,7 @@ def line_feedback(output_image, landmarks, W, H, predicted_class, last_pose):
         cv2.arrowedLine(output_image,(hx, hy - arrow_offset),(hx, hy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
         cv2.arrowedLine(output_image,(sx, sy - arrow_offset),(sx, sy - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
         cv2.arrowedLine(output_image,(hip_x, hip_y - arrow_offset),(hip_x, hip_y - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
-    elif predicted_class == "D_S_2" and last_pose == "D_S_1":
+    elif predicted_class == "D_S_2" and previous_pose == "D_S_1":
         right_hip = landmarks[24]
         right_shoulder = landmarks[12]
 
@@ -156,7 +158,7 @@ def line_feedback(output_image, landmarks, W, H, predicted_class, last_pose):
 
         cv2.arrowedLine(output_image,(hip_x, hip_y - arrow_offset),(hip_x + arrow_length, hip_y - arrow_offset),arrow_color, 7, tipLength=0.3)
         cv2.arrowedLine(output_image,(sh_x, sh_y - arrow_offset),(sh_x, sh_y - arrow_offset - arrow_height),arrow_color, 7, tipLength=0.3)
-    elif predicted_class == "D_S_2" and last_pose == "D_S_3":
+    elif predicted_class == "D_S_2" and previous_pose == "D_S_3":
         right_hip = landmarks[24]
         right_shoulder = landmarks[12]
 

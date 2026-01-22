@@ -56,7 +56,7 @@ for dir_ in os.listdir(dataset_dir):
             continue
 
         lm = results.pose_landmarks.landmark
-
+        ##Source https://www.nature.com/articles/s41598-025-32768-3_reference.pdf?
         left_shoulder = lm[11]
         right_shoulder = lm[12]
         center_x = (left_shoulder.x + right_shoulder.x) / 2
@@ -75,7 +75,6 @@ for dir_ in os.listdir(dataset_dir):
             (center_z - torso_center_z) ** 2
         ) + 1e-6
 
-        # Normalized 3D landmarks
         data_raw = []
         for idx in landmarks:
             x_norm = (lm[idx].x - center_x) / torso_length

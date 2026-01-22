@@ -24,17 +24,10 @@ labels = []
 def augment_landmarks(sample,xy_noise=0.005, z_noise=0.01, scale_range=(0.97, 1.03), rotate_deg=2):
     aug = sample.reshape(-1, 3).copy()
 
-    # Small XY noise (pose jitter)
     aug[:, :2] += np.random.normal(0, xy_noise, aug[:, :2].shape)
-
-    # Slight depth noise (camera distance variation)
     aug[:, 2] += np.random.normal(0, z_noise, aug[:, 2].shape)
-
-    # Mild scaling
     scale = np.random.uniform(*scale_range)
     aug *= scale
-
-    # Very small in-plane rotation (camera tilt)
     theta = np.deg2rad(np.random.uniform(-rotate_deg, rotate_deg))
     rot = np.array([
         [np.cos(theta), -np.sin(theta), 0],
@@ -64,21 +57,18 @@ for dir_ in os.listdir(dataset_dir):
 
         lm = results.pose_landmarks.landmark
 
-        # Center of shoulders
         left_shoulder = lm[11]
         right_shoulder = lm[12]
         center_x = (left_shoulder.x + right_shoulder.x) / 2
         center_y = (left_shoulder.y + right_shoulder.y) / 2
         center_z = (left_shoulder.z + right_shoulder.z) / 2
 
-        # Center of hips
         left_hip = lm[23]
         right_hip = lm[24]
         torso_center_x = (left_hip.x + right_hip.x) / 2
         torso_center_y = (left_hip.y + right_hip.y) / 2
         torso_center_z = (left_hip.z + right_hip.z) / 2
 
-        # Torso length (3D)
         torso_length = np.sqrt(
             (center_x - torso_center_x) ** 2 +
             (center_y - torso_center_y) ** 2 +
@@ -93,12 +83,10 @@ for dir_ in os.listdir(dataset_dir):
             z_norm = (lm[idx].z - center_z) / torso_length
             data_raw.extend([x_norm, y_norm, z_norm])
 
-        # Original sample
         data.append(data_raw)
         labels.append(dir_)
 
-        # Augmented samples
-        for _ in range(2):  # number of augmentations per sample
+        for _ in range(2):
             aug_sample = augment_landmarks(np.array(data_raw))
             data.append(aug_sample)
             labels.append(dir_)
@@ -112,7 +100,6 @@ y_encoded = to_categorical(y_encoded)
 
 x_train, x_test, y_train, y_test = train_test_split( x, y_encoded, test_size=0.3, random_state=42, stratify=y_encoded)
 
-# ------------------- Model -------------------
 model = Sequential([
     Dense(128, activation='relu', input_shape=(expected_landmarks,)),
     Dropout(0.3),

@@ -59,13 +59,13 @@ for dir_ in os.listdir(dataset_dir):
                 (lm[12].x, lm[12].y),
                 (lm[14].x, lm[14].y),
                 (lm[16].x, lm[16].y)
-            ),  # elbow
+            ),
 
             calculate_angle(
                 (lm[14].x, lm[14].y),
                 (lm[12].x, lm[12].y),
                 (lm[24].x, lm[24].y)
-            ),  # shoulder
+            ),
 
             calculate_angle(
                 (lm[12].x, lm[12].y),
@@ -83,10 +83,9 @@ for dir_ in os.listdir(dataset_dir):
                 (lm[26].x, lm[26].y),
                 (lm[28].x, lm[28].y),
                 (lm[32].x, lm[32].y)
-            )   # ankle
+            )
         ]
 
-        # Normalize angles → [0,1]
         angles_norm = [a / np.pi for a in angles]
 
         data.append(angles_norm)

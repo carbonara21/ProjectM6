@@ -46,17 +46,10 @@ def start_pose_recognition():
 
     cap = cv2.VideoCapture(0)
 
-    ## If it still doesnt work try these
-    ## FOR WINDOWS
-    ##cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-    ## FOR MAC
-    ## cap = cv2.VideoCapture(0, cv2.CAP_AVFOUNDATION)
-
     curl_sequence = ["BC_D_1", "BC_D_2", "BC_D_1"]
     pose_history = []
     counter = 0
     last_pose = None
-
 
     cv2.namedWindow("Full Body Pose Recognition", cv2.WINDOW_NORMAL)
     cv2.setWindowProperty("Full Body Pose Recognition", cv2.WND_PROP_FULLSCREEN, cv2.WINDOW_FULLSCREEN)
@@ -107,13 +100,11 @@ def start_pose_recognition():
             predicted_index = np.argmax(output_data)
             predicted_class = categories[predicted_index]
 
-            # Skeleton color
             if predicted_class in ["BC_D_1", "BC_D_2"]:
                 skeleton_color = (0, 255, 0)
             else:
                 skeleton_color = (0, 0, 255)
 
-            # Update pose history
             if predicted_class != last_pose:
                 last_pose = predicted_class
                 pose_history.append(predicted_class)
@@ -135,7 +126,7 @@ def start_pose_recognition():
             ]
 
             for start_idx, end_idx in connections:
-                x1 = int(smoothed_landmarks[start_idx][0] * W)  # use smoothed landmarks
+                x1 = int(smoothed_landmarks[start_idx][0] * W)
                 y1 = int(smoothed_landmarks[start_idx][1] * H)
                 x2 = int(smoothed_landmarks[end_idx][0] * W)
                 y2 = int(smoothed_landmarks[end_idx][1] * H)

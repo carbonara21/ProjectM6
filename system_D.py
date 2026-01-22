@@ -73,11 +73,11 @@ def start_pose_recognition():
 
 
             angles = [
-                calculate_angle(lm[12], lm[14], lm[16]),  # elbow
-                calculate_angle(lm[14], lm[12], lm[24]),  # shoulder
-                calculate_angle(lm[12], lm[24], lm[26]),  # hip
-                calculate_angle(lm[24], lm[26], lm[28]),  # knee
-                calculate_angle(lm[26], lm[28], lm[32])   # ankle
+                calculate_angle(lm[12], lm[14], lm[16]),
+                calculate_angle(lm[14], lm[12], lm[24]),
+                calculate_angle(lm[12], lm[24], lm[26]),
+                calculate_angle(lm[24], lm[26], lm[28]),
+                calculate_angle(lm[26], lm[28], lm[32])
             ]
 
             angles_norm = [a / np.pi for a in angles]
@@ -133,9 +133,9 @@ def line_feedback(output_image, landmarks, W, H, predicted_class, pose_history):
 
 
     if predicted_class in ["D_S_1", "D_S_2", "D_S_3"]:
-        arrow_color = (0, 255, 0)   # GREEN = correct
+        arrow_color = (0, 255, 0)
     else:
-        arrow_color = (0, 0, 255)   # RED = incorrect
+        arrow_color = (0, 0, 255)
 
     if predicted_class == "D_S_1":
         head = landmarks[0]
